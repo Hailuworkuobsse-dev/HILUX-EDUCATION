@@ -43,6 +43,12 @@ export default function TeacherDashboard() {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
+      ) : overview.error ? (
+        <Card className="p-5">
+          <p className="font-semibold">Teacher overview unavailable</p>
+          <p className="mt-1 text-sm text-fg-muted">Your content totals could not be loaded. These are not zero counts.</p>
+          <Button className="mt-3" variant="secondary" onClick={overview.reload}>Retry</Button>
+        </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -89,6 +95,11 @@ export default function TeacherDashboard() {
               <Skeleton className="h-24" />
               <Skeleton className="h-24" />
             </div>
+          ) : recentPapers.error ? (
+            <Card className="p-5">
+              <p className="text-sm text-fg-muted">Draft papers could not be loaded.</p>
+              <Button className="mt-3" size="sm" variant="secondary" onClick={recentPapers.reload}>Retry</Button>
+            </Card>
           ) : recentPapers.data && recentPapers.data.length > 0 ? (
             <div className="space-y-2">
               {recentPapers.data.slice(0, 5).map((p) => (
