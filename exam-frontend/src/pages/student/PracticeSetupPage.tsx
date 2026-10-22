@@ -21,7 +21,7 @@ export default function PracticeSetupPage() {
   const [params] = useSearchParams();
   const initialPaperId = params.get('paperId');
   const initialSubjectId = params.get('subjectId');
-  const initialMode = (params.get('mode') as Mode | null) ?? 'custom';
+  const initialMode: Mode = params.get('mode') === 'spaced' ? 'spaced' : 'custom';
   const navigate = useNavigate();
   const toast = useToast();
   const start = useStartAttempt();
@@ -127,7 +127,8 @@ export default function PracticeSetupPage() {
           min={5}
           max={100}
           value={count}
-          onChange={(e) => setCount(Number(e.target.value))}
+          step={1}
+          onChange={(e) => setCount(Math.min(100, Math.max(5, Number(e.target.value) || 5)))}
         />
       </div>
 
@@ -136,6 +137,13 @@ export default function PracticeSetupPage() {
           <p className="mb-2 text-sm font-medium">Topics</p>
           {detail.loading ? (
             <Skeleton className="h-24" />
+          ) : detail.error ? (
+            <Alert tone="warning" title="Topics could not be loaded">
+              <div className="flex flex-wrap items-center gap-2">
+                <span>Retry loading the selected subject's topics.</span>
+                <Button size="sm" variant="secondary" onClick={detail.reload}>Retry</Button>
+              </div>
+            </Alert>
           ) : detail.data && detail.data.topics.length > 0 ? (
             <div className="grid gap-2 sm:grid-cols-2">
               {detail.data.topics.map((t) => (
@@ -155,6 +163,13 @@ export default function PracticeSetupPage() {
             <p className="text-sm text-fg-muted">No topics available.</p>
           )}
         </div>
+      )}
+
+      {mode === 'spaced' && due.error && (
+        <Alert tone="warning" title="Review queue unavailable">
+          Could not load questions due for review. Retry before starting a spaced-review session.
+          <Button className="mt-2" size="sm" variant="secondary" onClick={due.reload}>Retry</Button>
+        </Alert>
       )}
 
       {mode === 'spaced' && (
@@ -206,6 +221,17 @@ function PapersList({ subjectId }: { subjectId: string }) {
         <Skeleton className="h-16" />
         <Skeleton className="h-16" />
       </div>
+    );
+  }
+  if (papers.error) {
+    return (
+      <Card className="p-6 text-center text-sm text-fg-muted">
+        <FileQuestion className="mx-auto mb-2 h-6 w-6 text-fg-subtle" />
+        Papers could not be loaded. Check your connection and try again.
+        <div className="mt-3">
+          <Button size="sm" variant="secondary" onClick={papers.reload}>Retry</Button>
+        </div>
+      </Card>
     );
   }
   if (!papers.data || papers.data.length === 0) {
