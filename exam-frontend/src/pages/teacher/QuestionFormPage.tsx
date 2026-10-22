@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Skeleton } from '@/components/ui';
+import { Button, Card, Skeleton } from '@/components/ui';
 import { QuestionForm } from '@/features/teacher/components';
 import {
   useCreateQuestion,
@@ -60,6 +60,19 @@ export default function QuestionFormPage() {
       toast.error('Save failed', msg);
     }
   };
+
+  if (isEdit && existing.error) {
+    return (
+      <Card className="space-y-3 p-5">
+        <p className="font-semibold">Unable to load this question for editing.</p>
+        <p className="text-sm text-fg-muted">The form is not safe to edit until the existing question has loaded.</p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={existing.reload}>Retry</Button>
+          <Button variant="ghost" onClick={() => navigate(ROUTES.TEACHER.QUESTIONS)}>Back to question bank</Button>
+        </div>
+      </Card>
+    );
+  }
 
   if (isEdit && existing.loading) {
     return (
