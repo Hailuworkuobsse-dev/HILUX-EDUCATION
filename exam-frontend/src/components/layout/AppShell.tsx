@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useUnreadThreadCount } from '@/features/mentor/hooks';
@@ -10,6 +10,17 @@ import { ROUTES } from '@/router/routes';
 export function AppShell() {
   const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileOpen]);
 
   const unreadThreads = useUnreadThreadCount(user?.role === 'mentor');
 
@@ -31,11 +42,13 @@ export function AppShell() {
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0">
+          <div id="mobile-navigation" className="absolute inset-y-0 left-0">
             <Sidebar
               items={items}
               shared={SHARED_NAV}
@@ -47,7 +60,7 @@ export function AppShell() {
       )}
 
       <div className="flex flex-1 flex-col">
-        <Topbar onMenuClick={() => setMobileOpen(true)} />
+        <Topbar mobileMenuOpen={mobileOpen} onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-7xl">
             <Outlet />
