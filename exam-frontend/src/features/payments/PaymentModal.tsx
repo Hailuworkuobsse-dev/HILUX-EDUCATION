@@ -54,7 +54,8 @@ export function PaymentModal({
   // Poll for payment status
   useInterval(
     async () => {
-      if (!initResult || paid) return;
+      // A closed modal must never continue polling in the background.
+      if (!open || !initResult || paid || failure) return;
       try {
         const res = await status.mutate(initResult.orderId);
         if (res.status === 'succeeded') {
@@ -68,10 +69,10 @@ export function PaymentModal({
           setFailure(res.failureReason ?? 'Payment failed');
         }
       } catch {
-        /* silent; retry next tick */
+        // Temporary status-check failures are retried on the next interval.
       }
     },
-    initResult && !paid ? 3000 : null
+    open && initResult && !paid && !failure ? 3000 : null
   );
 
   const startPayment = async () => {
@@ -157,10 +158,16 @@ export function PaymentModal({
               </div>
             </Alert>
           )}
-          <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-elevated/40 py-3 text-sm text-fg-muted">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Waiting for payment confirmation…
-          </div>
+          {!failure && (
+            <div
+              className="flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-elevated/40 py-3 text-sm text-fg-muted"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Waiting for payment confirmation…
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
