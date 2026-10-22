@@ -21,6 +21,15 @@ export default function ResultsPage() {
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
+      ) : attempts.error ? (
+        <Card>
+          <EmptyState
+            icon={<Trophy className="h-6 w-6" />}
+            title="Results could not be loaded"
+            description="We couldn't retrieve your attempt history. This does not mean your results are missing."
+            action={<Button onClick={attempts.reload} variant="secondary">Try again</Button>}
+          />
+        </Card>
       ) : attempts.data && attempts.data.length > 0 ? (
         <div className="space-y-2">
           {attempts.data.map((a) => (
