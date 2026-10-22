@@ -169,7 +169,7 @@ export function toEnrollmentDTO(e: Enrollment): EnrollmentDTO {
     subjectId: e.subjectId,
     status: e.status,
     trialEndsAt: e.trialEndsAt?.toISOString() ?? null,
-    currentPeriodsEndsAt: e.currentPeriodsEndsAt?.toISOString() ?? null,
+    currentPeriodEndsAt: e.currentPeriodEndsAt?.toISOString() ?? null,
     createdAt: e.createdAt.toISOString()
   };
 }
