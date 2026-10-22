@@ -1,6 +1,6 @@
 import { Flame, Target, TrendingUp, Trophy } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Card, Skeleton } from '@/components/ui';
+import { Button, Card, Skeleton } from '@/components/ui';
 import {
   ScoreTrendChart,
   StatCard,
@@ -31,6 +31,12 @@ export default function AnalyticsPage() {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
+      ) : overview.error ? (
+        <Card className="p-5">
+          <p className="font-semibold">Analytics summary unavailable</p>
+          <p className="mt-1 text-sm text-fg-muted">We could not retrieve your performance metrics. Please retry before interpreting these results.</p>
+          <Button className="mt-3" variant="secondary" onClick={overview.reload}>Retry</Button>
+        </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -71,6 +77,11 @@ export default function AnalyticsPage() {
           </h2>
           {progress.loading ? (
             <Skeleton className="h-56" />
+          ) : progress.error ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-fg-muted">Score trend could not be loaded.</p>
+              <Button className="mt-2" size="sm" variant="secondary" onClick={progress.reload}>Retry</Button>
+            </div>
           ) : (
             <ScoreTrendChart data={progress.data ?? []} />
           )}
@@ -81,6 +92,11 @@ export default function AnalyticsPage() {
           </h2>
           {topicAccuracy.loading ? (
             <Skeleton className="h-56" />
+          ) : topicAccuracy.error ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-fg-muted">Topic insights could not be loaded.</p>
+              <Button className="mt-2" size="sm" variant="secondary" onClick={topicAccuracy.reload}>Retry</Button>
+            </div>
           ) : (
             <TopicAccuracyChart data={topicAccuracy.data ?? []} />
           )}

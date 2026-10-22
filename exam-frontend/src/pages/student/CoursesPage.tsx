@@ -1,6 +1,6 @@
 import { BookOpen } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Card, EmptyState, Skeleton } from '@/components/ui';
+import { Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import { CourseCard, TrialBanner } from '@/features/student/components';
 import { useCourses } from '@/features/student/hooks';
 
@@ -21,6 +21,15 @@ export default function CoursesPage() {
             <Skeleton key={i} className="h-40" />
           ))}
         </div>
+      ) : courses.error ? (
+        <Card>
+          <EmptyState
+            icon={<BookOpen className="h-6 w-6" />}
+            title="Courses could not be loaded"
+            description="This may be a temporary connection or service problem. Your courses have not been deleted."
+            action={<Button onClick={courses.reload} variant="secondary">Try again</Button>}
+          />
+        </Card>
       ) : courses.data && courses.data.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {courses.data.map((c) => (

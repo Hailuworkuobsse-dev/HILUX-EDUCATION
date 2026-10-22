@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Badge, Button, Card, Select } from '@/components/ui';
+import { Alert, Badge, Button, Card, Select, Skeleton } from '@/components/ui';
 import { PaymentModal } from '@/features/payments/PaymentModal';
 import { useCourses } from '@/features/student/hooks';
 import { useToast } from '@/hooks/useToast';
@@ -38,6 +38,20 @@ export default function SubscribePage() {
         description="Unlock unlimited practice per course and keep your momentum going."
       />
 
+      {courses.loading ? (
+        <Card className="space-y-4 p-6">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-20" />
+          <Skeleton className="h-10" />
+        </Card>
+      ) : courses.error ? (
+        <Alert tone="warning" title="Subscription options unavailable">
+          We couldn't load your courses. Please retry before choosing a course to pay for.
+          <div className="mt-3">
+            <Button size="sm" variant="secondary" onClick={courses.reload}>Retry</Button>
+          </div>
+        </Alert>
+      ) : (
       <Card className="relative overflow-hidden p-6">
         <div className="absolute right-4 top-4">
           <Badge tone="brand" dot>
@@ -99,6 +113,7 @@ export default function SubscribePage() {
           </div>
         </div>
       </Card>
+      )}
 
       <div className="text-center">
         <Button asChild variant="ghost">
