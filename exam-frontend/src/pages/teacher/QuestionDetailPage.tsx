@@ -44,12 +44,17 @@ export default function QuestionDetailPage() {
       <Card>
         <EmptyState
           icon={<BookOpen className="h-6 w-6" />}
-          title="Question not found"
-          description="It may have been removed."
+          title={question.error ? "Question could not be loaded" : "Question not found"}
+          description={question.error ? "The request failed. Check your connection and try again." : "This question may have been removed or you may not have access."}
           action={
-            <Button asChild>
-              <Link to={ROUTES.TEACHER.QUESTIONS}>Back to bank</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {question.error && (
+                <Button variant="secondary" onClick={question.reload}>Retry</Button>
+              )}
+              <Button asChild>
+                <Link to={ROUTES.TEACHER.QUESTIONS}>Back to bank</Link>
+              </Button>
+            </div>
           }
         />
       </Card>
