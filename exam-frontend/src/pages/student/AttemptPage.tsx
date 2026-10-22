@@ -89,6 +89,7 @@ export default function AttemptPage() {
   const doSubmit = async () => {
     setSubmitOpen(false);
     try {
+      await state.saveAllAnswers();
       await submit.mutate();
       toast.success('Attempt submitted');
       navigate(ROUTES.STUDENT.RESULT.replace(':attemptId', data.id), { replace: true });
@@ -99,6 +100,8 @@ export default function AttemptPage() {
   };
 
   const unanswered = questions.length - answeredCount;
+  const savingCount = Object.values(state.saveStates).filter((status) => status === 'saving').length;
+  const failedSaveCount = Object.values(state.saveStates).filter((status) => status === 'error').length;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-4">
@@ -126,6 +129,17 @@ export default function AttemptPage() {
           <LayoutGrid className="h-4 w-4" />
         </IconButton>
       </Card>
+
+      {savingCount > 0 && (
+        <Alert tone="info" title="Saving your answers">
+          {savingCount} answer{savingCount === 1 ? '' : 's'} still saving. You can continue, but wait for saving to finish before leaving.
+        </Alert>
+      )}
+      {failedSaveCount > 0 && (
+        <Alert tone="danger" title="Some answers could not be saved">
+          {failedSaveCount} answer{failedSaveCount === 1 ? '' : 's'} need to be saved again. Submitting will retry saving your current answers before the attempt is submitted.
+        </Alert>
+      )}
 
       {/* Question */}
       <Card className="p-5 sm:p-6">
