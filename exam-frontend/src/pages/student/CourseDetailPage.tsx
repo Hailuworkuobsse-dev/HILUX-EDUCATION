@@ -54,8 +54,8 @@ export default function CourseDetailPage() {
           description={`${data.totalPapers} papers · ${data.totalQuestions} questions`}
           actions={
             <Button asChild leftIcon={<FileQuestion className="h-4 w-4" />}>
-              <Link to={`${ROUTES.STUDENT.PRACTICE}?subjectId=${data.id}`}>
-                Build a practice
+              <Link to={active ? `${ROUTES.STUDENT.PRACTICE}?subjectId=${data.id}` : `${ROUTES.STUDENT.SUBSCRIBE}?subjectId=${data.id}`}>
+                {active ? "Build a practice" : "Subscribe to practice"}
               </Link>
             </Button>
           }
@@ -86,7 +86,7 @@ export default function CourseDetailPage() {
         ) : (
           <div className="space-y-2">
             {data.papers.map((paper) => (
-              <PaperCard key={paper.id} paper={paper} />
+              <PaperCard key={paper.id} paper={paper} locked={!active} subscribeTo={`${ROUTES.STUDENT.SUBSCRIBE}?subjectId=${data.id}`} />
             ))}
           </div>
         )}

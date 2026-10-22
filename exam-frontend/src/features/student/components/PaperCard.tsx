@@ -3,7 +3,7 @@ import { Clock, FileQuestion, Play } from 'lucide-react';
 import { Badge, Button, Card } from '@/components/ui';
 import type { ExamPaper } from '@/types/exam';
 
-export function PaperCard({ paper }: { paper: ExamPaper }) {
+export function PaperCard({ paper, locked = false, subscribeTo }: { paper: ExamPaper; locked?: boolean; subscribeTo?: string }) {
   return (
     <Card className="flex items-center justify-between gap-4 p-4">
       <div className="min-w-0">
@@ -20,7 +20,7 @@ export function PaperCard({ paper }: { paper: ExamPaper }) {
         </div>
       </div>
       <Button asChild size="sm" leftIcon={<Play className="h-3.5 w-3.5" />}>
-        <Link to={`/student/practice?paperId=${paper.id}`}>Start</Link>
+        <Link to={locked && subscribeTo ? subscribeTo : `/student/practice?paperId=${paper.id}`}>{locked ? "Subscribe" : "Start"}</Link>
       </Button>
     </Card>
   );

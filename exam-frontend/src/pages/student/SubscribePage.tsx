@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Badge, Button, Card, Select } from '@/components/ui';
+import { Alert, Badge, Button, Card, Select, Skeleton } from '@/components/ui';
 import { PaymentModal } from '@/features/payments/PaymentModal';
 import { useCourses } from '@/features/student/hooks';
 import { useToast } from '@/hooks/useToast';
@@ -37,6 +37,16 @@ export default function SubscribePage() {
         title="Subscribe"
         description="Unlock unlimited practice per course and keep your momentum going."
       />
+
+      {courses.loading && <Skeleton className="h-20" />}
+      {courses.error && (
+        <Alert tone="warning" title="Could not load your course subscriptions">
+          {courses.error.message}
+          <div className="mt-3">
+            <Button variant="outline" size="sm" onClick={courses.reload}>Try again</Button>
+          </div>
+        </Alert>
+      )}
 
       <Card className="relative overflow-hidden p-6">
         <div className="absolute right-4 top-4">
@@ -74,16 +84,16 @@ export default function SubscribePage() {
           <div className="w-full max-w-sm space-y-3">
             <Select
               label="Course"
-              placeholder={lockedCourses.length === 0 ? 'No courses to purchase' : 'Choose a course'}
+              placeholder={courses.loading ? 'Loading courses…' : courses.error ? 'Could not load courses' : lockedCourses.length === 0 ? 'No courses to purchase' : 'Choose a course'}
               options={options}
               value={subjectId}
               onChange={(e) => setSubjectId(e.target.value)}
-              disabled={lockedCourses.length === 0}
+              disabled={courses.loading || !!courses.error || lockedCourses.length === 0}
             />
             <Button
               size="lg"
               fullWidth
-              disabled={!subjectId || lockedCourses.length === 0}
+              disabled={courses.loading || !!courses.error || !subjectId || lockedCourses.length === 0}
               onClick={handleOpen}
             >
               Continue to payment
@@ -91,7 +101,7 @@ export default function SubscribePage() {
             <p className="text-center text-xs text-fg-subtle">
               Pay via Telebirr, CBE Birr, or Chapa.
             </p>
-            {lockedCourses.length === 0 && (
+            {!courses.loading && !courses.error && lockedCourses.length === 0 && (
               <p className="text-center text-xs text-fg-subtle">
                 All courses already active. Enjoy practicing!
               </p>
