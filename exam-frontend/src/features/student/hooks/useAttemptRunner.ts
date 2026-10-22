@@ -18,17 +18,19 @@ export function useAttemptRunner(attemptId: string | undefined) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [marked, setMarked] = useState<Record<string, boolean>>({});
-  const [hydrated, setHydrated] = useState(false);
+  const [hydratedAttemptId, setHydratedAttemptId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!attempt.data || hydrated) return;
+    if (!attempt.data || hydratedAttemptId === attempt.data.id) return;
     const init: Record<string, string> = {};
     attempt.data.answers.forEach((a) => {
       if (a.selectedOptionId) init[a.questionId] = a.selectedOptionId;
     });
     setAnswers(init);
-    setHydrated(true);
-  }, [attempt.data, hydrated]);
+    setIndex(0);
+    setMarked({});
+    setHydratedAttemptId(attempt.data.id);
+  }, [attempt.data, hydratedAttemptId]);
 
   // `save.mutate` is stable across renders (useMutation uses refs), so the
   // callback below does not churn on every render.
@@ -38,7 +40,8 @@ export function useAttemptRunner(attemptId: string | undefined) {
     (questionId: string, optionId: string) => {
       setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
       saveMutate({ questionId, selectedOptionId: optionId }).catch(() => {
-        /* non-blocking — retried on submit */
+        // The local answer remains visible. The backend is authoritative;
+        // submission should report failure if the server cannot persist it.
       });
     },
     [saveMutate]
