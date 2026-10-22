@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -48,7 +48,7 @@ export default function AttemptPage() {
     }
   }, [data, navigate]);
 
-  if (attempt.loading || !data) {
+  if (attempt.loading) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <Skeleton className="h-14" />
@@ -58,7 +58,7 @@ export default function AttemptPage() {
     );
   }
 
-  if (attempt.error || !data.questions || data.questions.length === 0) {
+  if (attempt.error || !data || !data.questions || data.questions.length === 0) {
     return (
       <Card>
         <EmptyState
@@ -67,7 +67,7 @@ export default function AttemptPage() {
           description="We couldn't load this attempt."
           action={
             <Button asChild>
-              <a href={ROUTES.STUDENT.PRACTICE}>Back to practice</a>
+              <Link to={ROUTES.STUDENT.PRACTICE}>Back to practice</Link>
             </Button>
           }
         />
