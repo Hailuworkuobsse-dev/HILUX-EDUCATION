@@ -28,6 +28,12 @@ export default function ReviewQueuePage() {
         <Skeleton key={i} className="h-24" />
       ))}
     </div>
+  ) : questionsQueue.error ? (
+    <Card className="p-5">
+      <p className="font-semibold">Question review queue unavailable</p>
+      <p className="mt-1 text-sm text-fg-muted">We couldn't retrieve pending question reviews.</p>
+      <Button className="mt-3" size="sm" variant="secondary" onClick={questionsQueue.reload}>Retry</Button>
+    </Card>
   ) : otherQuestions.length === 0 ? (
     <Card>
       <EmptyState
@@ -55,6 +61,12 @@ export default function ReviewQueuePage() {
         <Skeleton key={i} className="h-24" />
       ))}
     </div>
+  ) : papersQueue.error ? (
+    <Card className="p-5">
+      <p className="font-semibold">Paper review queue unavailable</p>
+      <p className="mt-1 text-sm text-fg-muted">We couldn't retrieve pending paper reviews.</p>
+      <Button className="mt-3" size="sm" variant="secondary" onClick={papersQueue.reload}>Retry</Button>
+    </Card>
   ) : otherPapers.length === 0 ? (
     <Card>
       <EmptyState

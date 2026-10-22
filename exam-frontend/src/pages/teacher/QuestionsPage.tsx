@@ -106,6 +106,12 @@ export default function QuestionsPage() {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
+      ) : questions.error ? (
+        <Card className="p-5">
+          <p className="font-semibold">Question bank unavailable</p>
+          <p className="mt-1 text-sm text-fg-muted">Questions could not be retrieved. Your saved questions have not been removed.</p>
+          <Button className="mt-3" variant="secondary" onClick={questions.reload}>Retry</Button>
+        </Card>
       ) : questions.data && questions.data.items.length > 0 ? (
         <>
           <div className="space-y-2">

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save } from 'lucide-react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '@/components/ui';
-import { SUBJECTS, DIFFICULTIES, LANGUAGES } from '@/lib/constants';
+import { Alert, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '@/components/ui';
+import { DIFFICULTIES, LANGUAGES } from '@/lib/constants';
 import type { Question } from '@/types/question';
 import { useSubjects, useTopics } from '../hooks';
 import { questionFormSchema, type QuestionFormValues } from '../schemas';
@@ -99,9 +99,7 @@ export function QuestionForm({ initial, submitting, onSubmit, onCancel }: Questi
   const previewCorrectId = watchedCorrect >= 0 ? `opt-${watchedCorrect}` : undefined;
 
   const subjectOptions = useMemo(
-    () =>
-      subjectsQuery.data?.map((s) => ({ value: s.id, label: s.name })) ??
-      SUBJECTS.map((s) => ({ value: s, label: s })),
+    () => subjectsQuery.data?.map((s) => ({ value: s.id, label: s.name })) ?? [],
     [subjectsQuery.data]
   );
   const topicOptions = useMemo(
@@ -115,6 +113,18 @@ export function QuestionForm({ initial, submitting, onSubmit, onCancel }: Questi
 
   return (
     <form onSubmit={submitHandler} className="space-y-4">
+      {subjectsQuery.error && (
+        <Alert tone="warning" title="Subject list unavailable">
+          The subject list could not be loaded. Retry before creating or editing a question.
+          <Button className="mt-2" size="sm" variant="secondary" onClick={subjectsQuery.reload}>Retry</Button>
+        </Alert>
+      )}
+      {subjectId && topicsQuery.error && (
+        <Alert tone="warning" title="Topic list unavailable">
+          Topics for this subject could not be loaded. Retry before saving the question.
+          <Button className="mt-2" size="sm" variant="secondary" onClick={topicsQuery.reload}>Retry</Button>
+        </Alert>
+      )}
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <Card>

@@ -44,12 +44,17 @@ export default function PaperDetailPage() {
       <Card>
         <EmptyState
           icon={<FileQuestion className="h-6 w-6" />}
-          title="Paper not found"
-          description="It may have been removed."
+          title={paper.error ? "Paper could not be loaded" : "Paper not found"}
+          description={paper.error ? "The request failed. Check your connection and try again." : "This paper may have been removed or you may not have access."}
           action={
-            <Button asChild>
-              <Link to={ROUTES.TEACHER.PAPERS}>Back to papers</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {paper.error && (
+                <Button variant="secondary" onClick={paper.reload}>Retry</Button>
+              )}
+              <Button asChild>
+                <Link to={ROUTES.TEACHER.PAPERS}>Back to papers</Link>
+              </Button>
+            </div>
           }
         />
       </Card>
