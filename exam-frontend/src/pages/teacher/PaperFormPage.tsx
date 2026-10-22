@@ -146,6 +146,19 @@ export default function PaperFormPage() {
     }
   });
 
+  if (isEdit && existing.error) {
+    return (
+      <Card className="space-y-3 p-5">
+        <p className="font-semibold">Unable to load this paper for editing.</p>
+        <p className="text-sm text-fg-muted">The form is not safe to edit until the existing paper has loaded.</p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={existing.reload}>Retry</Button>
+          <Button variant="ghost" onClick={() => navigate(ROUTES.TEACHER.PAPERS)}>Back to papers</Button>
+        </div>
+      </Card>
+    );
+  }
+
   if (isEdit && existing.loading) {
     return (
       <div className="space-y-3">
@@ -171,6 +184,13 @@ export default function PaperFormPage() {
           </Button>
         }
       />
+
+      {subjects.error && (
+        <Alert tone="warning" title="Subjects could not be loaded">
+          Choose a valid subject only after the subject list has loaded.
+          <Button className="mt-2" size="sm" variant="secondary" onClick={subjects.reload}>Retry</Button>
+        </Alert>
+      )}
 
       <form onSubmit={submitHandler} className="space-y-4">
         <Card>
