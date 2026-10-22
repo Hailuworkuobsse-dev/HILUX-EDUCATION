@@ -25,7 +25,7 @@ export default function PracticeSetupPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const start = useStartAttempt();
-  const startedPaperIds = useRef(new Set<string>());
+  const paperStartRequest = useRef<{ id: string; promise: ReturnType<typeof start.mutate> } | null>(null);
 
   const courses = useCourses();
   const [subjectId, setSubjectId] = useState<string>(initialSubjectId ?? '');
@@ -45,11 +45,16 @@ export default function PracticeSetupPage() {
   // If a paperId was passed, start the attempt immediately.
   useEffect(() => {
     if (!initialPaperId) return;
-    if (startedPaperIds.current.has(initialPaperId)) return;
-    startedPaperIds.current.add(initialPaperId);
     let cancelled = false;
-    start
-      .mutate({ paperId: initialPaperId })
+    let request = paperStartRequest.current;
+    if (!request || request.id !== initialPaperId) {
+      request = {
+        id: initialPaperId,
+        promise: start.mutate({ paperId: initialPaperId })
+      };
+      paperStartRequest.current = request;
+    }
+    request.promise
       .then((attempt) => {
         if (cancelled) return;
         navigate(ROUTES.STUDENT.ATTEMPT.replace(':attemptId', attempt.id), {
@@ -58,7 +63,9 @@ export default function PracticeSetupPage() {
       })
       .catch((e) => {
         if (cancelled) return;
-        startedPaperIds.current.delete(initialPaperId);
+        if (paperStartRequest.current?.id === initialPaperId) {
+          paperStartRequest.current = null;
+        }
         const msg = e instanceof ApiError ? e.message : 'Could not start paper.';
         toast.error('Could not start paper', msg);
       });
