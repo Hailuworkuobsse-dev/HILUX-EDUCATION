@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Download, FileText, Upload } from 'lucide-react';
-import { Button, Card, Textarea } from '@/components/ui';
+import { Alert, Button, Card, Textarea } from '@/components/ui';
 
 const SAMPLE_CSV = `subject,topic,difficulty,year,language,prompt,optionA,optionB,optionC,optionD,optionE,correct,explanation
 Mathematics,Algebra,easy,2023,en,"If x + 2 = 5, what is x?",1,2,3,4,,C,"Subtract 2 from both sides: x = 3."
@@ -13,12 +13,30 @@ export interface BulkImportUploaderProps {
 
 export function BulkImportUploader({ onCsvReady, loading }: BulkImportUploaderProps) {
   const [text, setText] = useState('');
+  const [fileError, setFileError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
-    const content = await file.text();
-    setText(content);
-    onCsvReady(content);
+    setFileError(null);
+    if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
+      setFileError('Please select a CSV file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setFileError('The CSV file is too large. Maximum size is 5 MB.');
+      return;
+    }
+    try {
+      const content = await file.text();
+      if (!content.trim()) {
+        setFileError('The selected CSV file is empty.');
+        return;
+      }
+      setText(content);
+      onCsvReady(content);
+    } catch {
+      setFileError('The file could not be read. Try saving it as UTF-8 CSV and upload again.');
+    }
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,7 +61,7 @@ export function BulkImportUploader({ onCsvReady, loading }: BulkImportUploaderPr
           <div>
             <p className="text-sm font-semibold">CSV format</p>
             <p className="text-xs text-fg-muted">
-              14 columns: subject, topic, difficulty, year, language, prompt, optionA–E, correct, explanation.
+              13 columns: subject, topic, difficulty, year, language, prompt, optionA–E, correct, explanation.
             </p>
           </div>
           <Button
@@ -60,6 +78,11 @@ export function BulkImportUploader({ onCsvReady, loading }: BulkImportUploaderPr
 
       <Card className="p-4">
         <p className="mb-2 text-sm font-semibold">Upload file</p>
+        {fileError && (
+          <Alert className="mb-3" tone="warning" title="Could not read CSV">
+            {fileError}
+          </Alert>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -83,7 +106,7 @@ export function BulkImportUploader({ onCsvReady, loading }: BulkImportUploaderPr
         />
         <div className="mt-3 flex justify-end">
           <Button
-            onClick={() => onCsvReady(text)}
+            onClick={() => { setFileError(null); onCsvReady(text); }}
             disabled={!text.trim()}
             loading={loading}
             leftIcon={<Upload className="h-4 w-4" />}
