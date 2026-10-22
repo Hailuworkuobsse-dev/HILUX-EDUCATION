@@ -66,6 +66,12 @@ export default function PapersPage() {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
+      ) : papers.error ? (
+        <Card className="p-5">
+          <p className="font-semibold">Exam papers unavailable</p>
+          <p className="mt-1 text-sm text-fg-muted">The paper list could not be retrieved. Try again before changing your filters.</p>
+          <Button className="mt-3" variant="secondary" onClick={papers.reload}>Retry</Button>
+        </Card>
       ) : papers.data && papers.data.length > 0 ? (
         <div className="space-y-2">
           {papers.data.map((p) => (
