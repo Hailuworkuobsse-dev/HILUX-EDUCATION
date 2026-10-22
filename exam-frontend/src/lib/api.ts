@@ -163,34 +163,34 @@ async function request<T>(
   const url = buildUrl(path, opts.query);
   const useAuth = opts.auth !== false;
 
-  const send = (token: string | null) =>
-    fetch(url, {
-      method,
-      signal: opts.signal,
-      headers: buildHeaders(body, opts, useAuth ? token : null),
-      body: body === undefined ? undefined : JSON.stringify(body)
-    });
+  const send = async (token: string | null): Promise<Response> => {
+    try {
+      return await fetch(url, {
+        method,
+        signal: opts.signal,
+        headers: buildHeaders(body, opts, useAuth ? token : null),
+        body: body === undefined ? undefined : JSON.stringify(body)
+      });
+    } catch (error) {
+      // Preserve intentional cancellation so callers can stop stale requests
+      // without presenting an offline/server error to the user.
+      if (
+        opts.signal?.aborted ||
+        (error instanceof Error && error.name === 'AbortError')
+      ) {
+        throw error;
+      }
 
-  let res: Response;
-  try {
-    res = await send(getAccessToken());
-  } catch (error) {
-    // Preserve intentional cancellation so callers can stop stale requests
-    // without presenting an offline/server error to the user.
-    if (
-      opts.signal?.aborted ||
-      (error instanceof Error && error.name === 'AbortError')
-    ) {
-      throw error;
+      throw new ApiError(
+        0,
+        'Unable to connect to the server. Check your internet connection and try again.',
+        'NETWORK_ERROR',
+        error
+      );
     }
+  };
 
-    throw new ApiError(
-      0,
-      'Unable to connect to the server. Check your internet connection and try again.',
-      'NETWORK_ERROR',
-      error
-    );
-  }
+  let res = await send(getAccessToken());
 
   // One transparent retry after a successful token refresh.
   if (res.status === 401 && useAuth && getRefreshToken()) {
