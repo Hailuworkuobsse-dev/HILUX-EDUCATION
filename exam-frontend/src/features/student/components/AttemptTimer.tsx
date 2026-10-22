@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Clock } from 'lucide-react';
 import { useInterval } from '@/hooks/useInterval';
 import { formatClock } from '@/lib/date';
@@ -20,7 +20,19 @@ export function AttemptTimer({ startedAt, durationMinutes, onExpire }: AttemptTi
   const display = remaining !== null ? formatClock(remaining) : formatClock(elapsed);
   const danger = remaining !== null && remaining < 5 * 60 * 1000;
 
-  if (remaining !== null && remaining <= 0 && onExpire) onExpire();
+  // `onExpire` must not be called during render — it sets state in the parent,
+  // which React rejects (and would loop). Fire it once, from an effect.
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    if (firedRef.current) return;
+    if (remaining !== null && remaining <= 0) {
+      firedRef.current = true;
+      onExpireRef.current?.();
+    }
+  }, [remaining]);
 
   return (
     <div
@@ -30,6 +42,8 @@ export function AttemptTimer({ startedAt, durationMinutes, onExpire }: AttemptTi
           ? 'border-danger/40 bg-danger/10 text-rose-300'
           : 'border-border bg-bg-surface/60 text-fg-muted'
       )}
+      role="timer"
+      aria-label={remaining !== null ? 'Time remaining' : 'Time elapsed'}
     >
       <Clock className="h-3.5 w-3.5" />
       {display}

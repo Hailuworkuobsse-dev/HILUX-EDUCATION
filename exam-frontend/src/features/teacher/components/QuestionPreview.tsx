@@ -11,7 +11,7 @@ export interface QuestionPreviewOption {
 export interface QuestionPreviewProps {
   prompt: string;
   options: QuestionPreviewOption[];
-  correctOptionId?: string;
+  correctOptionId?: string | null;
   explanation?: string;
   showAnswer?: boolean;
 }

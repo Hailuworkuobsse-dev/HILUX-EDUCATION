@@ -65,24 +65,13 @@ export default function MenteesPage() {
 
       <Tabs
         items={[
-          { key: 'all', label: 'All', content: <div>{listContent}</div> },
-          {
-            key: 'high',
-            label: 'At risk',
-            content: <div onClick={() => setFilter('high')}>{listContent}</div>
-          },
-          {
-            key: 'medium',
-            label: 'Watch',
-            content: <div onClick={() => setFilter('medium')}>{listContent}</div>
-          },
-          {
-            key: 'low',
-            label: 'On track',
-            content: <div onClick={() => setFilter('low')}>{listContent}</div>
-          }
+          { key: 'all', label: 'All', content: listContent },
+          { key: 'high', label: 'At risk', content: listContent },
+          { key: 'medium', label: 'Watch', content: listContent },
+          { key: 'low', label: 'On track', content: listContent }
         ]}
-        defaultValue="all"
+        value={filter}
+        onChange={(key) => setFilter(key as Filter)}
       />
     </div>
   );

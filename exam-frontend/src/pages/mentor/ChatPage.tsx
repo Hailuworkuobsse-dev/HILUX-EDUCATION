@@ -61,7 +61,7 @@ export default function ChatPage() {
         )}
 
         {activeThread ? (
-          <ChatThread thread={activeThread} showBack={!isDesktop} />
+          <ChatThread thread={activeThread} showBack={!isDesktop} onRead={threads.reload} />
         ) : (
           isDesktop && (
             <Card className="flex h-[calc(100vh-8rem)] items-center justify-center">

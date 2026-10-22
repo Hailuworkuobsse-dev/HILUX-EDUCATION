@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, Lock, Sparkles } from 'lucide-react';
 import { Badge, Button, Card } from '@/components/ui';
 import type { CourseSummary } from '../api';
-import { ROUTES } from '@/router/routes';
 import { APP } from '@/lib/constants';
 
 export function CourseCard({ course }: { course: CourseSummary }) {

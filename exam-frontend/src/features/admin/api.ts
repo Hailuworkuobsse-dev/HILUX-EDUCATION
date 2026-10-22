@@ -10,7 +10,6 @@ import type {
   AdminUserFilter,
   AdminUserStatus,
   AdminUsersPage,
-  AuditLogEntry,
   AuditLogFilter,
   AuditLogPage,
   ContentFlag,

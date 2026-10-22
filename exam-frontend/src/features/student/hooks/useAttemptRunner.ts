@@ -30,14 +30,18 @@ export function useAttemptRunner(attemptId: string | undefined) {
     setHydrated(true);
   }, [attempt.data, hydrated]);
 
+  // `save.mutate` is stable across renders (useMutation uses refs), so the
+  // callback below does not churn on every render.
+  const { mutate: saveMutate } = save;
+
   const setAnswer = useCallback(
     (questionId: string, optionId: string) => {
       setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
-      save.mutate({ questionId, selectedOptionId: optionId }).catch(() => {
+      saveMutate({ questionId, selectedOptionId: optionId }).catch(() => {
         /* non-blocking — retried on submit */
       });
     },
-    [save]
+    [saveMutate]
   );
 
   const toggleMarked = useCallback((questionId: string) => {

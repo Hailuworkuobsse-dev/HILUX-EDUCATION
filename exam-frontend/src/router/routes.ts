@@ -6,6 +6,9 @@ export const ROUTES = {
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
   UNAUTHORIZED: '/unauthorized',
+  TERMS: '/terms',
+  PRIVACY: '/privacy',
+  SUPPORT: '/support',
   PROFILE: '/profile',
   SETTINGS: '/settings',
   STUDENT: {

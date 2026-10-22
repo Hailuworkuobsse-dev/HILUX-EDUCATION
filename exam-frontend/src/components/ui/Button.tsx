@@ -67,22 +67,37 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   if (asChild && isValidElement(children)) {
     const child = children as ReactElement<{ className?: string; children?: ReactNode }>;
-    const mergedChildren = (
-      <>
-        {leftIcon}
-        {child.props.children}
-        {rightIcon}
-      </>
-    );
+
+    // Strip button-only attributes so we don't end up with `<a disabled>`.
+    const {
+      type: _type,
+      disabled: _disabled,
+      form: _form,
+      name: _name,
+      value: _value,
+      ...forwardable
+    } = rest as Record<string, unknown>;
+
     return cloneElement(child, {
+      ...(forwardable as Record<string, unknown>),
       className: cn(classes, child.props.className),
-      children: mergedChildren
-    });
+      children: (
+        <>
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            leftIcon
+          )}
+          {child.props.children}
+          {rightIcon}
+        </>
+      )
+    } as Record<string, unknown>);
   }
 
   return (
     <button ref={ref} disabled={isDisabled} className={classes} {...rest}>
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : leftIcon}
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : leftIcon}
       {children}
       {rightIcon}
     </button>

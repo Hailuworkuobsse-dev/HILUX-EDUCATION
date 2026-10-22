@@ -14,12 +14,15 @@ import { ROUTES } from '@/router/routes';
 export interface ChatThreadProps {
   thread: MentorThread;
   showBack?: boolean;
+  onRead?: () => void;
 }
 
-export function ChatThread({ thread, showBack }: ChatThreadProps) {
+export function ChatThread({ thread, showBack, onRead }: ChatThreadProps) {
   const { user } = useAuth();
   const toast = useToast();
-  const { messages, loading, error, send, sending } = useThreadMessages(thread.id);
+  const { messages, loading, error, send, sending } = useThreadMessages(thread.id, {
+    onRead
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const grouped = useMemo(() => groupMessages(messages), [messages]);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Clock, FileQuestion, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock, FileQuestion, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge, Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import {

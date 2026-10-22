@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, CreditCard, Loader2, Smartphone, XCircle } from 'lucide-react';
+import { CheckCircle2, CreditCard, Loader2, Smartphone } from 'lucide-react';
 import { Alert, Button, Modal, Spinner } from '@/components/ui';
 import { useInterval } from '@/hooks/useInterval';
 import { useToast } from '@/hooks/useToast';

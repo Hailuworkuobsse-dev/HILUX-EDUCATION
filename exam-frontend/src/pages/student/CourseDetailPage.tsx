@@ -67,7 +67,7 @@ export default function CourseDetailPage() {
           This course is locked. Subscribe for 150 ETB to continue practicing.
           <div className="mt-2">
             <Button asChild size="sm" variant="outline">
-              <Link to={ROUTES.STUDENT.SUBSCRIBE}>See plans</Link>
+              <Link to={`${ROUTES.STUDENT.SUBSCRIBE}?subjectId=${data.id}`}>See plans</Link>
             </Button>
           </div>
         </Alert>

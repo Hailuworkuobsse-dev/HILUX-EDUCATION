@@ -14,12 +14,23 @@ export interface UseThreadMessagesResult {
   sending: boolean;
 }
 
-export function useThreadMessages(threadId: string | undefined): UseThreadMessagesResult {
+export interface UseThreadMessagesOptions {
+  /** Fired after the thread has been marked as read, so callers can refresh
+   *  unread counts / thread lists. */
+  onRead?: () => void;
+}
+
+export function useThreadMessages(
+  threadId: string | undefined,
+  options: UseThreadMessagesOptions = {}
+): UseThreadMessagesResult {
   const [messages, setMessages] = useState<MentorMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const lastSeenRef = useRef<string | null>(null);
+  const onReadRef = useRef(options.onRead);
+  onReadRef.current = options.onRead;
 
   // Initial load per thread
   useEffect(() => {
@@ -49,7 +60,10 @@ export function useThreadMessages(threadId: string | undefined): UseThreadMessag
       });
 
     // Fire-and-forget mark-as-read
-    mentorApi.markThreadRead(threadId).catch(() => undefined);
+    mentorApi
+      .markThreadRead(threadId)
+      .then(() => onReadRef.current?.())
+      .catch(() => undefined);
 
     return () => {
       cancelled = true;
@@ -76,7 +90,10 @@ export function useThreadMessages(threadId: string | undefined): UseThreadMessag
           return merged;
         });
         // Mark any newly received as read
-        mentorApi.markThreadRead(threadId).catch(() => undefined);
+        mentorApi
+          .markThreadRead(threadId)
+          .then(() => onReadRef.current?.())
+          .catch(() => undefined);
       } catch {
         /* silent poll failure */
       }

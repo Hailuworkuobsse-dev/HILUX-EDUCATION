@@ -21,4 +21,7 @@ export function StatusBadge({ status }: { status: Status }) {
   );
 }
 
+// Icon map shared with the teacher list/detail views — exported alongside the
+// component on purpose (react-refresh only allows literal constants here).
+// eslint-disable-next-line react-refresh/only-export-components
 export const STATUS_ICONS = { draft: FileEdit, review: Send, published: CheckCircle2, archived: Archive };

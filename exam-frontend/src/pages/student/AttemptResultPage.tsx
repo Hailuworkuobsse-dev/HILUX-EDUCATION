@@ -8,8 +8,7 @@ import {
   Card,
   EmptyState,
   Progress,
-  Skeleton,
-  Tabs
+  Skeleton
 } from '@/components/ui';
 import { ReviewQuestion } from '@/features/student/components';
 import { useAttemptResult } from '@/features/student/hooks';

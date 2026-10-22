@@ -29,7 +29,15 @@ export default function LoginPage() {
       const session = await login.mutate(values);
       toast.success('Welcome back!');
       const from = (location.state as { from?: string } | null)?.from;
-      navigate(from ?? ROLE_HOME[session.user.role], { replace: true });
+      const roleHome = ROLE_HOME[session.user.role];
+      // Only honour `from` when the user's role can actually access it.
+      const fromAllowed =
+        from &&
+        (from === `/${session.user.role}` ||
+          from.startsWith(`/${session.user.role}/`) ||
+          from === '/profile' ||
+          from === '/settings');
+      navigate(fromAllowed && from ? from : roleHome, { replace: true });
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : 'Sign-in failed. Please try again.';
       toast.error('Sign-in failed', msg);

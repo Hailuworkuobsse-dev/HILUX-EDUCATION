@@ -14,6 +14,12 @@ const VerifyOtpPage = lazy(() => import('@/pages/auth/VerifyOtpPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const UnauthorizedPage = lazy(() => import('@/pages/shared/UnauthorizedPage'));
+const TermsPage = lazy(() => import('@/pages/shared/TermsPage'));
+const PrivacyPage = lazy(() => import('@/pages/shared/PrivacyPage'));
+const SupportPage = lazy(() => import('@/pages/shared/SupportPage'));
+const NotFoundPage = lazy(() =>
+  import('@/components/feedback/NotFound').then((m) => ({ default: m.NotFound }))
+);
 const ProfilePage = lazy(() => import('@/pages/shared/ProfilePage'));
 const SettingsPage = lazy(() => import('@/pages/shared/SettingsPage'));
 
@@ -65,6 +71,9 @@ const router = createBrowserRouter([
       { path: ROUTES.RESET_PASSWORD, element: wrap(<ResetPasswordPage />) }
     ]
   },
+  { path: ROUTES.TERMS, element: wrap(<TermsPage />) },
+  { path: ROUTES.PRIVACY, element: wrap(<PrivacyPage />) },
+  { path: ROUTES.SUPPORT, element: wrap(<SupportPage />) },
   { path: ROUTES.UNAUTHORIZED, element: wrap(<UnauthorizedPage />) },
   {
     element: <ProtectedRoute />,
@@ -131,7 +140,7 @@ const router = createBrowserRouter([
       }
     ]
   },
-  { path: '*', element: wrap(<LandingPage />) }
+  { path: '*', element: wrap(<NotFoundPage />) }
 ]);
 
 export function AppRouter() {

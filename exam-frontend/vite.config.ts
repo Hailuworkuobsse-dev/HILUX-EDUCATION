@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt'],
+      includeAssets: ['favicon.svg', 'robots.txt', 'pwa-192.svg', 'pwa-512.svg'],
       manifest: {
         name: 'ExamPrep — Grade 10 Practice',
         short_name: 'ExamPrep',
@@ -19,19 +19,32 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png' }
+          {
+            src: '/pwa-192.svg',
+            sizes: '192x192',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          },
+          {
+            src: '/pwa-512.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          },
+          {
+            src: '/pwa-maskable.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml',
+            purpose: 'maskable'
+          }
         ]
       },
       workbox: {
+        // Cache static assets only. API responses are NEVER cached — they
+        // are user-specific and mixing them across sessions is a privacy bug.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'api-cache', networkTimeoutSeconds: 5 }
-          }
-        ]
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//]
       }
     })
   ],

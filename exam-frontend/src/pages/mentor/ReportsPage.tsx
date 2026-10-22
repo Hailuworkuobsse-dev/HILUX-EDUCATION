@@ -61,11 +61,12 @@ export default function ReportsPage() {
       />
       <Tabs
         items={[
-          { key: 'open', label: 'Open', content: <div onClick={() => setStatus('open')}>{content}</div> },
-          { key: 'resolved', label: 'Resolved', content: <div onClick={() => setStatus('resolved')}>{content}</div> },
-          { key: 'dismissed', label: 'Dismissed', content: <div onClick={() => setStatus('dismissed')}>{content}</div> }
+          { key: 'open', label: 'Open', content },
+          { key: 'resolved', label: 'Resolved', content },
+          { key: 'dismissed', label: 'Dismissed', content }
         ]}
-        defaultValue="open"
+        value={status}
+        onChange={(key) => setStatus(key as MentorReportStatus)}
       />
     </div>
   );
