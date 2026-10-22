@@ -171,7 +171,26 @@ async function request<T>(
       body: body === undefined ? undefined : JSON.stringify(body)
     });
 
-  let res = await send(getAccessToken());
+  let res: Response;
+  try {
+    res = await send(getAccessToken());
+  } catch (error) {
+    // Preserve intentional cancellation so callers can stop stale requests
+    // without presenting an offline/server error to the user.
+    if (
+      opts.signal?.aborted ||
+      (error instanceof Error && error.name === 'AbortError')
+    ) {
+      throw error;
+    }
+
+    throw new ApiError(
+      0,
+      'Unable to connect to the server. Check your internet connection and try again.',
+      'NETWORK_ERROR',
+      error
+    );
+  }
 
   // One transparent retry after a successful token refresh.
   if (res.status === 401 && useAuth && getRefreshToken()) {
