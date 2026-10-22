@@ -1,7 +1,14 @@
-import { ZodError, type ZodSchema } from 'zod';
+import { ZodError, type ZodTypeAny, type infer as ZodInfer } from 'zod';
 import { ApiError } from './errors.js';
 
-export function validate<T>(schema: ZodSchema<T>, data: unknown): T {
+/**
+ * Parse `data` with `schema` and map Zod issues onto a `400 ApiError`.
+ *
+ * The return type is the schema's **output** type (`z.infer`), so any
+ * `.default()` / `.transform()` the schema applies is reflected in what the
+ * caller receives (e.g. `language` is `string`, not `string | undefined`).
+ */
+export function validate<S extends ZodTypeAny>(schema: S, data: unknown): ZodInfer<S> {
   try {
     return schema.parse(data);
   } catch (err) {

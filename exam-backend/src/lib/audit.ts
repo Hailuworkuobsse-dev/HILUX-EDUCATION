@@ -20,9 +20,17 @@ export type AuditAction =
   | 'payment.failed'
   | 'content.unpublished'
   | 'content.deleted'
+  | 'question.created'
+  | 'question.updated'
+  | 'question.deleted'
   | 'question.published'
+  | 'question.rejected'
   | 'question.archived'
+  | 'paper.created'
+  | 'paper.updated'
+  | 'paper.deleted'
   | 'paper.published'
+  | 'paper.rejected'
   | 'paper.archived'
   | 'role.permission_changed';
 

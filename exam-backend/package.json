@@ -16,6 +16,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed:teacher": "tsx prisma/seed-teacher.ts",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down"
   },
