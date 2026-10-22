@@ -310,3 +310,30 @@ async function simulate(orderId: string, status: string): Promise<void> {
     paidAt: new Date().toISOString()
   });
 }
+
+/**
+ * Browser-friendly dev simulation for the `checkoutUrl` tab.
+ *
+ * Unlike `devSimulateSuccessPublic` this never throws for an already-settled
+ * order, so refreshing (or re-opening) the tab still renders a sensible page.
+ * Returns the order status after the attempt.
+ */
+export async function devSimulateForBrowser(orderId: string): Promise<string> {
+  assertNotProduction();
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { id: true, status: true }
+  });
+  if (!order) throw ApiError.notFound('Order not found');
+
+  if (order.status === 'pending') {
+    await markSucceeded(order.id, {
+      providerRef: `dev-${order.id.slice(0, 8)}`,
+      paidAt: new Date().toISOString()
+    });
+    return 'succeeded';
+  }
+
+  return order.status;
+}

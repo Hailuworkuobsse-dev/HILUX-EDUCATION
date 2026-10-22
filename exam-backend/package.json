@@ -4,18 +4,24 @@
   "private": true,
   "type": "module",
   "description": "ExamPrep backend — Grade 10 exam practice platform",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "echo 'no lint yet'",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed:mentor": "tsx prisma/seed-mentor.ts",
     "prisma:seed:teacher": "tsx prisma/seed-teacher.ts",
     "prisma:seed:admin": "tsx prisma/seed-admin.ts",
     "db:up": "docker-compose up -d",
@@ -38,14 +44,19 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.14.15",
+    "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "^3.2.7",
     "pino-pretty": "^11.2.2",
     "prisma": "^5.18.0",
+    "supertest": "^7.3.1",
     "tsx": "^4.17.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.7"
   }
 }

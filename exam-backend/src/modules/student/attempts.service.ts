@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type {
   Attempt,
   AttemptAnswer,
@@ -23,6 +24,46 @@ type QuestionWithOptions = Question & { options: QuestionOption[] };
 type AnswerWithQuestion = AttemptAnswer & { question: QuestionWithOptions };
 type AttemptWithAnswers = Attempt & { answers: AnswerWithQuestion[] };
 
+/**
+ * `AttemptAnswer` has no order column, so answers are ordered by the time they
+ * were created/answered with `id` as a deterministic tiebreaker (all rows of an
+ * attempt are inserted in one statement and therefore share a timestamp).
+ */
+const ANSWER_ORDER: Prisma.AttemptAnswerOrderByWithRelationInput[] = [
+  { answeredAt: 'asc' },
+  { id: 'asc' }
+];
+
+/** questionId → position, for one or more papers. Keyed `paperId:questionId`. */
+async function loadPaperOrder(paperIds: (string | null)[]): Promise<Map<string, number>> {
+  const ids = Array.from(new Set(paperIds.filter((id): id is string => !!id)));
+  if (ids.length === 0) return new Map();
+
+  const links = await prisma.paperQuestion.findMany({
+    where: { paperId: { in: ids } },
+    select: { paperId: true, questionId: true, orderIndex: true }
+  });
+
+  return new Map(links.map((l) => [`${l.paperId}:${l.questionId}`, l.orderIndex]));
+}
+
+/**
+ * Restore the paper's authored question order. Practice/spaced attempts have no
+ * canonical order, so they keep `ANSWER_ORDER`.
+ */
+function applyPaperOrder<T extends { questionId: string }>(
+  answers: T[],
+  paperId: string | null,
+  order: Map<string, number>
+): T[] {
+  if (!paperId || order.size === 0) return answers;
+
+  const at = (questionId: string) =>
+    order.get(`${paperId}:${questionId}`) ?? Number.MAX_SAFE_INTEGER;
+
+  return [...answers].sort((a, b) => at(a.questionId) - at(b.questionId));
+}
+
 async function createAttemptRecord(
   userId: string,
   data: {
@@ -45,23 +86,31 @@ async function createAttemptRecord(
       totalQuestions: data.questions.length,
       status: 'in_progress',
       answers: {
-        create: data.questions.map((q, i) => ({
+        create: data.questions.map((q) => ({
           questionId: q.id,
           selectedOptionId: null,
-          timeSpentMs: 0,
-          orderIndex: i
+          timeSpentMs: 0
         }))
       }
     },
     include: {
       answers: {
-        orderBy: { orderIndex: 'asc' },
+        orderBy: ANSWER_ORDER,
         include: {
           question: { include: { options: { orderBy: { orderIndex: 'asc' } } } }
         }
       }
     }
   });
+
+  // Preserve the order the questions were supplied in: paper order for paper
+  // attempts, selection order for practice/spaced.
+  const position = new Map(data.questions.map((q, i) => [q.id, i]));
+  created.answers.sort(
+    (a, b) =>
+      (position.get(a.questionId) ?? Number.MAX_SAFE_INTEGER) -
+      (position.get(b.questionId) ?? Number.MAX_SAFE_INTEGER)
+  );
 
   return created;
 }
@@ -211,7 +260,7 @@ export async function getAttempt(
     where: { id: attemptId },
     include: {
       answers: {
-        orderBy: { orderIndex: 'asc' },
+        orderBy: ANSWER_ORDER,
         include: {
           question: { include: { options: { orderBy: { orderIndex: 'asc' } } } }
         }
@@ -220,6 +269,12 @@ export async function getAttempt(
   });
   if (!attempt) throw ApiError.notFound('Attempt not found');
   if (attempt.userId !== userId) throw ApiError.notFound('Attempt not found');
+
+  attempt.answers = applyPaperOrder(
+    attempt.answers,
+    attempt.paperId,
+    await loadPaperOrder([attempt.paperId])
+  );
 
   const subject = await prisma.subject.findUnique({
     where: { id: attempt.subjectId },
@@ -249,7 +304,7 @@ export async function listAttempts(
     skip,
     include: {
       answers: {
-        orderBy: { orderIndex: 'asc' },
+        orderBy: ANSWER_ORDER,
         include: {
           question: { include: { options: { orderBy: { orderIndex: 'asc' } } } }
         }
@@ -263,6 +318,11 @@ export async function listAttempts(
     select: { id: true, name: true }
   });
   const nameById = new Map(subjects.map((s) => [s.id, s.name]));
+
+  const paperOrder = await loadPaperOrder(attempts.map((a) => a.paperId));
+  for (const a of attempts) {
+    a.answers = applyPaperOrder(a.answers, a.paperId, paperOrder);
+  }
 
   return attempts.map((a) =>
     toAttemptDTO(a, {
@@ -338,7 +398,7 @@ export async function getAttemptResult(
     where: { id: attemptId },
     include: {
       answers: {
-        orderBy: { orderIndex: 'asc' },
+        orderBy: ANSWER_ORDER,
         include: {
           question: {
             include: {
@@ -355,6 +415,12 @@ export async function getAttemptResult(
   if (attempt.status !== 'graded') {
     throw ApiError.badRequest('Attempt is not graded yet');
   }
+
+  attempt.answers = applyPaperOrder(
+    attempt.answers,
+    attempt.paperId,
+    await loadPaperOrder([attempt.paperId])
+  );
 
   const subject = await prisma.subject.findUnique({
     where: { id: attempt.subjectId },

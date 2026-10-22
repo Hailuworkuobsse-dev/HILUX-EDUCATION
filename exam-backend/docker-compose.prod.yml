@@ -1,0 +1,62 @@
+services:
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-examprep}
+      MYSQL_USER: ${MYSQL_USER:-examprep}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${MYSQL_ROOT_PASSWORD:-changeme}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: mysql://${MYSQL_USER:-examprep}:${MYSQL_PASSWORD:-changeme}@mysql:3306/${MYSQL_DATABASE:-examprep}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      TRIAL_DAYS: ${TRIAL_DAYS:-90}
+      PRICE_PER_COURSE: ${PRICE_PER_COURSE:-150}
+      CURRENCY: ${CURRENCY:-ETB}
+      # Payment providers — leave unset until the adapters are wired
+      TELEBIRR_APP_ID: ${TELEBIRR_APP_ID:-}
+      TELEBIRR_APP_KEY: ${TELEBIRR_APP_KEY:-}
+      TELEBIRR_PUBLIC_KEY: ${TELEBIRR_PUBLIC_KEY:-}
+      CBE_MERCHANT_ID: ${CBE_MERCHANT_ID:-}
+      CBE_API_KEY: ${CBE_API_KEY:-}
+      CBE_API_SECRET: ${CBE_API_SECRET:-}
+      CHAPA_SECRET_KEY: ${CHAPA_SECRET_KEY:-}
+      # Notifications — leave unset to keep logging to stdout
+      SMS_API_URL: ${SMS_API_URL:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_FROM_ID: ${SMS_FROM_ID:-}
+      EMAIL_API_URL: ${EMAIL_API_URL:-}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    ports:
+      - '4000:4000'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:4000/api/health/live']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  mysql_data:

@@ -9,3 +9,4 @@ dist
 .vscode
 coverage
 prisma/migrations/dev.db
+.backup-pre-fixes

@@ -3,6 +3,7 @@ import { env } from '../../config/env.js';
 import { asyncHandler } from '../../lib/async-handler.js';
 import { authenticate, optionalAuth } from '../../middleware/auth.js';
 import {
+  devSimulateGetHandler,
   devSimulateHandler,
   initPaymentHandler,
   statusHandler,
@@ -22,11 +23,12 @@ paymentsRouter.post('/webhook/:provider', asyncHandler(webhookHandler));
 // window.open(), which cannot carry an Authorization header. GET so the
 // browser flow works, POST so `curl -X POST` works too.
 if (env.NODE_ENV !== 'production') {
+  // GET → HTML confirmation page (what `window.open(checkoutUrl)` lands on)
   paymentsRouter.get(
     '/dev/:orderId/simulate-payment',
-    optionalAuth,
-    asyncHandler(devSimulateHandler)
+    asyncHandler(devSimulateGetHandler)
   );
+  // POST → JSON, for `curl -X POST`; keeps the owner check when a token is sent
   paymentsRouter.post(
     '/dev/:orderId/simulate-payment',
     optionalAuth,

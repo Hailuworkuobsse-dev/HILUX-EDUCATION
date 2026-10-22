@@ -25,6 +25,7 @@ import {
   dueReviewsHandler
 } from './analytics.controller.js';
 import { listPapersHandler } from './papers.controller.js';
+import { createFlagHandler } from './flags.controller.js';
 
 export const contentRouter = Router();
 
@@ -59,3 +60,6 @@ contentRouter.get('/analytics/me/overview', asyncHandler(overviewHandler));
 contentRouter.get('/analytics/me/topics', asyncHandler(topicAccuracyHandler));
 contentRouter.get('/analytics/me/progress', asyncHandler(progressHandler));
 contentRouter.get('/analytics/me/due-reviews', asyncHandler(dueReviewsHandler));
+
+// ─── Content flags (student / mentor reports) ────────────────────────────
+contentRouter.post('/flags', asyncHandler(createFlagHandler));

@@ -363,3 +363,111 @@ public endpoint later, mount it above contentRouter too.
 > Side effect: an unauthenticated request to a path that matches nothing
 > returns `401` rather than `404`, because contentRouter's auth gate runs
 > before the not-found fallback. Authenticated callers get the proper `404`.
+
+---
+
+## Post-step-6 — Ops, hardening & missed files
+
+Infrastructure, observability and the endpoints the first six steps left out.
+No schema change.
+
+### New / changed behaviour
+
+| Area | Change |
+|---|---|
+| `src/middleware/request-id.ts` | Every request gets an `X-Request-Id` (an incoming header is honored, capped at 128 chars, otherwise a UUID). Echoed on the response and attached to every request log line. |
+| `src/middleware/json-error-handler.ts` | Malformed JSON returns `{ message: 'Invalid JSON body', code: 'BAD_REQUEST' }` (400) instead of Express's HTML error page. |
+| `src/routes/health.ts` | Adds `/health/live` (no dependencies — liveness) and `/health/ready` (checks the DB, `503 { ok:false, db:'down' }` — readiness). `/health` and `/health/db` kept. |
+| `src/lib/logger.ts` | Pino `redact` for passwords, hashes, tokens and auth/cookie headers — verified: nested and header secrets are censored, non-sensitive fields survive. |
+| `src/lib/notifications.ts` | Real SMS (Afromessage) and email (Resend) delivery behind `SMS_API_KEY` / `EMAIL_API_KEY`. With no key (or outside production) messages are logged, not sent. Same three exports, so the auth/OTP flow is untouched. |
+| `POST /api/flags` | Students/mentors can now raise a content flag: `{ questionId, reason (3–120), description (10–2000) }` → `201`. `409` on a duplicate open flag, `400` on an archived question. This is the write side of `GET /api/admin/content/flags`. |
+| `GET /api/payments/dev/:orderId/simulate-payment` | Now renders an HTML confirmation page (that is what the checkout button's `window.open` lands on). `POST` still returns JSON. Re-opening the tab for an already-settled order shows its status instead of erroring. |
+| `src/config/env.ts` | Adds the payment-provider and notification variables (all optional). Empty strings are treated as unset for the URL vars, so a blank `SMS_API_URL=` can't fail boot. |
+
+### Operational files
+
+```
+Dockerfile                 multi-stage, non-root, HEALTHCHECK on /api/health/live
+.dockerignore
+docker-compose.prod.yml    MySQL 8 (healthchecked) + API, provider env passthrough
+Makefile                   install / db-up / migrate / seed-all / dev / build / test / reset
+scripts/reset-db.sh        interactive drop + migrate + seed-all
+scripts/generate-secrets.ts  prints fresh JWT secrets
+scripts/smoke.sh           end-to-end checks against a running API (curl + jq)
+vitest.config.ts           + tests/setup.ts
+tests/                     health · auth · csv · payments-providers (20 tests)
+docs/API.md                full endpoint reference + conventions
+docs/DEPLOYMENT.md         env vars, build, DB, systemd/Docker, nginx, probes, go-live checklist
+.github/workflows/ci.yml   at the REPO ROOT (see below)
+```
+
+`npm run test` (vitest) · `npm run test:watch` · `npm run test:coverage`.
+
+### Things that were wrong and are fixed here
+
+- **CI location.** A workflow at `exam-backend/.github/workflows/ci.yml` would never
+  run — GitHub only reads `.github/workflows/` at the repository root. It now lives
+  at the root with `defaults.run.working-directory: exam-backend`, path filters, and
+  `cache-dependency-path` pointing at the backend lockfile.
+- **CI schema step.** `prisma migrate deploy` cannot work: no `prisma/migrations/`
+  is committed. CI uses `prisma db push` for now; DEPLOYMENT.md explains how to
+  baseline a real migration and switch back.
+- **CI typecheck is advisory.** `npm run typecheck` still reports 13 pre-existing
+  errors from earlier steps, so the step runs with `continue-on-error: true` and a
+  TODO. Make it a hard gate once those are fixed (see "Known issues").
+- **Dockerfile build order.** `npm run build` ran before `prisma generate`, which
+  fails because `tsc` needs the generated `@prisma/client` types. Generate now
+  happens right after `npm ci`.
+- **Test tooling was missing.** The test files existed in the plan but nothing could
+  run them: no `test` script and no `vitest`/`supertest` dependencies. Added both,
+  pinned to a matched pair (vitest 3 + coverage-v8 3) because npm resolved
+  vitest 4 with coverage-v8 5, whose peer requirement cannot be satisfied and whose
+  transitive deps want Node ≥ 22 (this project targets Node 20).
+- **`prisma:seed:mentor` did not exist.** Upstream added `prisma/seed-mentor.ts`
+  without a package script, so the Makefile's `seed-all` and `scripts/reset-db.sh`
+  would have failed. Added.
+- **`API_PUBLIC_URL` would have been declared twice** in `env.ts` (duplicate object
+  key → compile error). Kept the single declaration and upgraded it to URL-validated.
+- **`scripts/smoke.sh`** aborted silently on the first failure (`set -e` + `&&`
+  chains). It now reports each check with ✓/✗, exits non-zero with a count, checks
+  for `curl`/`jq`, and additionally asserts the role guards (student → admin is
+  `403`), the malformed-JSON contract, and the `X-Request-Id` header.
+- **`docker-compose.prod.yml`** dropped the obsolete `version:` key and gained an
+  API healthcheck plus passthrough for the payment/notification variables.
+
+### Pre-existing bugs fixed alongside this batch
+
+`npm run typecheck` and `npm run build` were failing with 13 errors from earlier
+steps — which also meant the Dockerfile above could not build (`tsc` exits non-zero).
+All 13 are now fixed, so both are clean and CI gates on them.
+
+- **`attempts.service.ts` used a column that does not exist.** `AttemptAnswer` has no
+  `orderIndex`, but the code wrote one on create and ordered four queries by it.
+  Prisma rejects unknown fields at runtime, so **starting an attempt, listing
+  attempts, and reading a result all 500'd**. The invalid `orderBy` was also why
+  Prisma's inferred payload lost `answers` (7 of the 11 type errors).
+  Fixed without a schema change:
+  - answers are ordered `[{ answeredAt: 'asc' }, { id: 'asc' }]` — deterministic,
+    since every row of an attempt is inserted in one statement and shares a
+    timestamp (`id` breaks the tie);
+  - question order is then restored where it is meaningful: `createAttemptRecord`
+    re-sorts by the order the questions were supplied in (paper order for paper
+    attempts, selection order for practice/spaced), and `getAttempt` /
+    `listAttempts` / `getAttemptResult` re-sort by `PaperQuestion.orderIndex`
+    (one batched lookup for the whole list, so no N+1).
+  If you would rather persist the position, add
+  `orderIndex Int @default(0)` + `@@index([attemptId, orderIndex])` to
+  `AttemptAnswer` and write it on create — then the re-sorting helpers become
+  unnecessary.
+- **`courses.service.ts`** — `EnrollmentDTO.currentPeriodsEndsAt` was a typo for the
+  model's `currentPeriodEndsAt`, so the mapper never type-checked (nothing consumed
+  the typo'd name).
+- **`bcryptjs` had no types** — added `@types/bcryptjs`, clearing the implicit-`any`
+  error in `src/lib/password.ts`.
+
+### Known issues (not introduced here)
+
+1. A stray duplicate of the student module sits at the repo root (`/src/modules/student/`).
+2. The frontend's `BulkImportUploader.tsx` says "14 columns"; the CSV parser expects 13.
+3. No `prisma/migrations/` is committed, so deploys use `prisma db push`
+   (see `docs/DEPLOYMENT.md` for baselining a real migration).

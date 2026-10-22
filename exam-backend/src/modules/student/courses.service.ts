@@ -30,7 +30,7 @@ export interface EnrollmentDTO {
   subjectId: string;
   status: Enrollment['status'];
   trialEndsAt: string | null;
-  currentPeriodsEndsAt: string | null;
+  currentPeriodEndsAt: string | null;
   createdAt: string;
 }
 
