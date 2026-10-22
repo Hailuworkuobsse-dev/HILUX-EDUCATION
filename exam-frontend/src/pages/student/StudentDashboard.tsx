@@ -52,6 +52,12 @@ export default function StudentDashboard() {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
+      ) : overview.error ? (
+        <Card className="p-5">
+          <p className="font-semibold">Your performance could not be loaded.</p>
+          <p className="mt-1 text-sm text-fg-muted">Your scores have not been replaced with zeros. Check your connection and try again.</p>
+          <Button className="mt-3" variant="secondary" onClick={overview.reload}>Retry</Button>
+        </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -83,6 +89,13 @@ export default function StudentDashboard() {
             hint={dueCount > 0 ? 'Review now to lock it in' : 'All caught up'}
           />
         </div>
+      )}
+
+      {due.error && (
+        <Card className="p-4">
+          <p className="text-sm text-fg-muted">Your review queue could not be loaded.</p>
+          <Button className="mt-2" size="sm" variant="secondary" onClick={due.reload}>Retry</Button>
+        </Card>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -123,6 +136,11 @@ export default function StudentDashboard() {
                 <Skeleton className="h-16" />
                 <Skeleton className="h-16" />
               </div>
+            ) : recent.error ? (
+              <Card className="p-4">
+                <p className="text-sm text-fg-muted">Recent attempts could not be loaded.</p>
+                <Button className="mt-2" size="sm" variant="secondary" onClick={recent.reload}>Retry</Button>
+              </Card>
             ) : recent.data && recent.data.length > 0 ? (
               <div className="space-y-2">
                 {recent.data.map((a) => (
