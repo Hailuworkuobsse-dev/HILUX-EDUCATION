@@ -173,14 +173,22 @@ async function request<T>(
 
   let res = await send(getAccessToken());
 
-  // One transparent retry after a successful token refresh.
-  if (res.status === 401 && useAuth && getRefreshToken()) {
-    const refreshed = await refreshTokens();
-    if (refreshed) {
-      res = await send(getAccessToken());
-    } else {
+  // A 401 on an authenticated request means the access token may have expired.
+  // Try one refresh when possible, then invalidate the local session if the request
+  // is still unauthorized (including when no refresh token exists).
+  if (res.status === 401 && useAuth) {
+    if (getRefreshToken()) {
+      const refreshed = await refreshTokens();
+      if (refreshed) {
+        res = await send(getAccessToken());
+      }
+    }
+
+    if (res.status === 401) {
       clearTokens();
-      if (typeof window !== 'undefined') window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      }
     }
   }
 
