@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FileQuestion, Lightbulb, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -25,6 +25,7 @@ export default function PracticeSetupPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const start = useStartAttempt();
+  const startedPaperIds = useRef(new Set<string>());
 
   const courses = useCourses();
   const [subjectId, setSubjectId] = useState<string>(initialSubjectId ?? '');
@@ -44,6 +45,8 @@ export default function PracticeSetupPage() {
   // If a paperId was passed, start the attempt immediately.
   useEffect(() => {
     if (!initialPaperId) return;
+    if (startedPaperIds.current.has(initialPaperId)) return;
+    startedPaperIds.current.add(initialPaperId);
     let cancelled = false;
     start
       .mutate({ paperId: initialPaperId })
@@ -54,6 +57,8 @@ export default function PracticeSetupPage() {
         });
       })
       .catch((e) => {
+        if (cancelled) return;
+        startedPaperIds.current.delete(initialPaperId);
         const msg = e instanceof ApiError ? e.message : 'Could not start paper.';
         toast.error('Could not start paper', msg);
       });
