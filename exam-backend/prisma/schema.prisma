@@ -1,0 +1,604 @@
+// =============================================================================
+// ExamPrep — Prisma schema (MySQL)
+// Complete schema across all six build steps. No further migrations needed.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────
+
+enum Role {
+  student
+  mentor
+  teacher
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+  pending_verification
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum QuestionStatus {
+  draft
+  review
+  published
+  archived
+}
+
+enum PaperStatus {
+  draft
+  review
+  published
+  archived
+}
+
+enum AttemptStatus {
+  in_progress
+  submitted
+  graded
+  abandoned
+}
+
+enum AttemptMode {
+  paper
+  practice
+  spaced
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  grace_period
+  expired
+  cancelled
+}
+
+enum PaymentProvider {
+  telebirr
+  cbe_birr
+  chapa
+  manual
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  succeeded
+  failed
+  refunded
+}
+
+enum MentorAvailability {
+  available
+  busy
+  offline
+}
+
+enum MentorReportStatus {
+  open
+  resolved
+  dismissed
+}
+
+enum ContentFlagStatus {
+  open
+  resolved
+  dismissed
+}
+
+enum ContentFlagResolution {
+  unpublish
+  delete
+  keep
+}
+
+enum OtpChannel {
+  sms
+  email
+}
+
+enum OtpPurpose {
+  register
+  login
+  reset_password
+}
+
+// ─── Auth & user ───────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique @db.VarChar(255)
+  phone           String     @unique @db.VarChar(32)
+  passwordHash    String     @db.VarChar(255)
+  fullName        String     @db.VarChar(120)
+  role            Role       @default(student)
+  status          UserStatus @default(active)
+  avatarUrl       String?    @db.VarChar(500)
+  bio             String?    @db.Text
+  grade           Int?
+  school          String?    @db.VarChar(200)
+  languages       Json?
+  emailVerified   Boolean    @default(false)
+  phoneVerified   Boolean    @default(false)
+  trialStartedAt  DateTime?
+  trialEndsAt     DateTime?
+  lastActiveAt    DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  refreshTokens          RefreshToken[]
+  passwordResets         PasswordResetToken[]
+  otpChallenges          OtpChallenge[]
+  auditLogs              AuditLog[]              @relation("AuditActor")
+  enrollments            Enrollment[]
+  attempts               Attempt[]
+  orders                 Order[]
+  reviewSchedules        ReviewSchedule[]
+  mentorProfile          MentorProfile?
+  menteeAssignments      MenteeAssignment[]      @relation("Mentee")
+  mentorAssignments      MenteeAssignment[]      @relation("Mentor")
+  menteeThreads          MentorThread[]          @relation("MenteeThreads")
+  mentorThreads          MentorThread[]          @relation("MentorThreads")
+  messages               MentorMessage[]
+  createdQuestions       Question[]              @relation("QuestionAuthor")
+  reviewedQuestions      Question[]              @relation("QuestionReviewer")
+  createdPapers          ExamPaper[]             @relation("PaperAuthor")
+  reviewedPapers         ExamPaper[]             @relation("PaperReviewer")
+  reportedFlags          ContentFlag[]           @relation("FlagReporter")
+  resolvedFlags          ContentFlag[]           @relation("FlagResolver")
+  reportedMentorReports  MentorReport[]          @relation("ReportByStudent")
+  resolvedMentorReports  MentorReport[]          @relation("ReportByResolver")
+  notificationPreference NotificationPreference?
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique @db.VarChar(255)
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?   @db.VarChar(500)
+  ip        String?   @db.VarChar(64)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique @db.VarChar(255)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model OtpChallenge {
+  id         String     @id @default(cuid())
+  userId     String
+  channel    OtpChannel
+  target     String     @db.VarChar(255)
+  codeHash   String     @db.VarChar(255)
+  purpose    OtpPurpose
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("otp_challenges")
+}
+
+model NotificationPreference {
+  id       String  @id @default(cuid())
+  userId   String  @unique
+  email    Boolean @default(true)
+  sms      Boolean @default(true)
+  push     Boolean @default(false)
+  language String  @default("en") @db.VarChar(8)
+  timezone String? @db.VarChar(64)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+// ─── Content: subjects / topics / papers / questions ──────────────────────
+
+model Subject {
+  id        String   @id @default(cuid())
+  slug      String   @unique @db.VarChar(64)
+  name      String   @db.VarChar(120)
+  iconKey   String?  @db.VarChar(64)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  topics      Topic[]
+  papers      ExamPaper[]
+  questions   Question[]
+  enrollments Enrollment[]
+  orders      Order[]
+
+  @@map("subjects")
+}
+
+model Topic {
+  id        String @id @default(cuid())
+  subjectId String
+  name      String @db.VarChar(120)
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@index([subjectId])
+  @@map("topics")
+}
+
+model ExamPaper {
+  id              String      @id @default(cuid())
+  subjectId       String
+  title           String      @db.VarChar(200)
+  year            Int
+  durationMinutes Int
+  difficulty      Difficulty  @default(medium)
+  status          PaperStatus @default(draft)
+  language        String      @default("en") @db.VarChar(8)
+  description     String?     @db.Text
+  createdById     String
+  reviewedById    String?
+  rejectionReason String?     @db.Text
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  subject    Subject         @relation(fields: [subjectId], references: [id])
+  createdBy  User            @relation("PaperAuthor", fields: [createdById], references: [id])
+  reviewedBy User?           @relation("PaperReviewer", fields: [reviewedById], references: [id])
+  questions  PaperQuestion[]
+  attempts   Attempt[]
+
+  @@index([subjectId])
+  @@index([status])
+  @@index([createdById])
+  @@map("exam_papers")
+}
+
+model PaperQuestion {
+  paperId    String
+  questionId String
+  orderIndex Int
+
+  paper    ExamPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  question Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([paperId, questionId])
+  @@index([questionId])
+  @@map("paper_questions")
+}
+
+model Question {
+  id              String         @id @default(cuid())
+  subjectId       String
+  topicId         String
+  difficulty      Difficulty     @default(medium)
+  year            Int?
+  language        String         @default("en") @db.VarChar(8)
+  prompt          String         @db.Text
+  explanation     String?        @db.Text
+  correctOptionId String         @db.VarChar(64)
+  status          QuestionStatus @default(draft)
+  version         Int            @default(1)
+  createdById     String
+  reviewedById    String?
+  rejectionReason String?        @db.Text
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  subject         Subject          @relation(fields: [subjectId], references: [id])
+  topic           Topic            @relation(fields: [topicId], references: [id])
+  createdBy       User             @relation("QuestionAuthor", fields: [createdById], references: [id])
+  reviewedBy      User?            @relation("QuestionReviewer", fields: [reviewedById], references: [id])
+  options         QuestionOption[]
+  paperLinks      PaperQuestion[]
+  attemptAnswers  AttemptAnswer[]
+  reviewSchedules ReviewSchedule[]
+  contentFlags    ContentFlag[]
+
+  @@index([subjectId])
+  @@index([topicId])
+  @@index([status])
+  @@index([createdById])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String @id @default(cuid())
+  questionId String
+  label      String @db.VarChar(2)
+  text       String @db.Text
+  orderIndex Int
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+// ─── Enrollments / attempts / spaced repetition ───────────────────────────
+
+model Enrollment {
+  id                  String             @id @default(cuid())
+  userId              String
+  subjectId           String
+  status              SubscriptionStatus @default(trialing)
+  trialEndsAt         DateTime?
+  currentPeriodEndsAt DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([userId, subjectId])
+  @@index([userId])
+  @@index([status])
+  @@map("enrollments")
+}
+
+model Attempt {
+  id              String        @id @default(cuid())
+  userId          String
+  paperId         String?
+  subjectId       String
+  mode            AttemptMode
+  status          AttemptStatus @default(in_progress)
+  title           String        @db.VarChar(200)
+  durationMinutes Int?
+  totalQuestions  Int
+  startedAt       DateTime      @default(now())
+  submittedAt     DateTime?
+  score           Float?
+  correctCount    Int?
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paper   ExamPaper?      @relation(fields: [paperId], references: [id])
+  answers AttemptAnswer[]
+
+  @@index([userId])
+  @@index([subjectId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("attempts")
+}
+
+model AttemptAnswer {
+  id               String   @id @default(cuid())
+  attemptId        String
+  questionId       String
+  selectedOptionId String?  @db.VarChar(64)
+  timeSpentMs      Int      @default(0)
+  isCorrect        Boolean?
+  answeredAt       DateTime @default(now())
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+  @@map("attempt_answers")
+}
+
+model ReviewSchedule {
+  id             String    @id @default(cuid())
+  userId         String
+  questionId     String
+  intervalDays   Int       @default(1)
+  easeFactor     Float     @default(2.5)
+  repetitions    Int       @default(0)
+  dueAt          DateTime
+  lastReviewedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, dueAt])
+  @@map("review_schedules")
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────
+
+model Order {
+  id             String          @id @default(cuid())
+  userId         String
+  subjectId      String
+  amount         Int
+  currency       String          @default("ETB") @db.VarChar(8)
+  status         PaymentStatus   @default(pending)
+  provider       PaymentProvider
+  providerRef    String?         @unique @db.VarChar(255)
+  idempotencyKey String?         @unique @db.VarChar(255)
+  paidAt         DateTime?
+  refundedAt     DateTime?
+  refundedAmount Int?
+  failureReason  String?         @db.Text
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([provider])
+  @@map("orders")
+}
+
+// ─── Mentor domain ────────────────────────────────────────────────────────
+
+model MentorProfile {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  subjects          Json?
+  languages         Json?
+  yearsOfExperience Int                @default(0)
+  availability      MentorAvailability @default(available)
+  verified          Boolean            @default(false)
+  rating            Float?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mentor_profiles")
+}
+
+model MenteeAssignment {
+  id         String    @id @default(cuid())
+  menteeId   String
+  mentorId   String
+  assignedAt DateTime  @default(now())
+  endedAt    DateTime?
+
+  mentee User @relation("Mentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentor User @relation("Mentor", fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@unique([menteeId, mentorId])
+  @@index([mentorId])
+  @@map("mentee_assignments")
+}
+
+model MentorThread {
+  id            String   @id @default(cuid())
+  menteeId      String
+  mentorId      String
+  subjectId     String?
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  mentee   User            @relation("MenteeThreads", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentor   User            @relation("MentorThreads", fields: [mentorId], references: [id], onDelete: Cascade)
+  messages MentorMessage[]
+
+  @@unique([menteeId, mentorId, subjectId])
+  @@index([mentorId])
+  @@index([menteeId])
+  @@map("mentor_threads")
+}
+
+model MentorMessage {
+  id        String    @id @default(cuid())
+  threadId  String
+  senderId  String
+  body      String    @db.Text
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  thread MentorThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([senderId])
+  @@map("mentor_messages")
+}
+
+model MentorReport {
+  id           String             @id @default(cuid())
+  studentId    String
+  mentorId     String?
+  subjectId    String?
+  questionId   String?
+  reason       String             @db.VarChar(120)
+  description  String             @db.Text
+  status       MentorReportStatus @default(open)
+  resolvedAt   DateTime?
+  resolvedById String?
+  createdAt    DateTime           @default(now())
+
+  student    User  @relation("ReportByStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  mentor     User? @relation("ReportByResolver", fields: [mentorId], references: [id])
+
+  @@index([mentorId])
+  @@index([status])
+  @@map("mentor_reports")
+}
+
+// ─── Admin: content flags + audit log ─────────────────────────────────────
+
+model ContentFlag {
+  id             String                @id @default(cuid())
+  questionId     String
+  reportedById   String
+  resolvedById   String?
+  reason         String                @db.VarChar(120)
+  description    String                @db.Text
+  status         ContentFlagStatus     @default(open)
+  resolution     ContentFlagResolution?
+  resolutionNote String?               @db.Text
+  createdAt      DateTime              @default(now())
+  resolvedAt     DateTime?
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  reportedBy User     @relation("FlagReporter", fields: [reportedById], references: [id])
+  resolvedBy User?    @relation("FlagResolver", fields: [resolvedById], references: [id])
+
+  @@index([status])
+  @@index([questionId])
+  @@map("content_flags")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String
+  action       String   @db.VarChar(64)
+  resourceType String   @db.VarChar(32)
+  resourceId   String?  @db.VarChar(64)
+  meta         Json?
+  ip           String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(500)
+  createdAt    DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
