@@ -10,6 +10,8 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  /** Public base URL used to build links handed to the browser (e.g. data export). */
+  API_PUBLIC_URL: z.string().optional(),
   TRIAL_DAYS: z.coerce.number().int().positive().default(90),
   PRICE_PER_COURSE: z.coerce.number().int().positive().default(150),
   CURRENCY: z.string().default('ETB')

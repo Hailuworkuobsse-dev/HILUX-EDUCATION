@@ -192,3 +192,174 @@ Touched outside the module (required for this step to compile):
 
 Audit events are written best-effort (`writeAudit(...).catch(() => undefined)`):
 a logging failure never fails the request.
+
+---
+
+## Step 6 — Admin, Payments, Account
+
+No schema change. This is the final step. It:
+
+- Expands the `AuditAction` union (teacher actions from Step 5 + admin/account actions)
+- Adds `signExportToken` / `verifyExportToken` helpers in `src/lib/jwt.ts`
+- Adds `src/modules/payments/` — init / status / webhook / dev-simulate
+- Adds `src/modules/account/` — preferences, password, export, delete
+- Replaces the `admin.routes.ts` placeholder with real admin endpoints
+- Adds an **hourly trial-expiry job** in `src/index.ts`
+
+### Admin endpoints (all `requireRole('admin')`)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET    | `/api/admin/overview` | Platform stats |
+| GET    | `/api/admin/users?role=&status=&search=&page=&pageSize=` | Paginated user list |
+| GET    | `/api/admin/users/:userId` | Detail + recent orders + recent audit |
+| PATCH  | `/api/admin/users/:userId/role` | `{ role, reason? }` — creates `MentorProfile` if new role is mentor |
+| PATCH  | `/api/admin/users/:userId/status` | `{ status, reason }` — suspending revokes all sessions |
+| POST   | `/api/admin/users/:userId/reset-password` | Issues a 1-hour reset token, revokes sessions |
+| GET    | `/api/admin/orders?status=&provider=&search=&page=&pageSize=` | Paginated order list |
+| GET    | `/api/admin/orders/:orderId` | Order detail |
+| POST   | `/api/admin/orders/:orderId/refund` | `{ amount?, reason }` — full refund also cancels enrollment |
+| POST   | `/api/admin/orders/:orderId/reconcile` | Records a reconciliation event |
+| GET    | `/api/admin/content/flags?status=` | Content flags |
+| POST   | `/api/admin/content/flags/:flagId/resolve` | `{ resolution: 'unpublish' \| 'delete' \| 'keep', reason }` |
+| GET    | `/api/admin/audit?actorId=&action=&resourceType=&search=&page=&pageSize=` | Paginated audit log |
+
+Admin guard rails: an admin **cannot change their own role or status**
+(`400`), a no-op role change is rejected, and `totalSpent` on the user DTO
+counts `succeeded` orders only.
+
+### Payments endpoints
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST   | `/api/payments/init` | ✅ | `{ subjectId, provider }` → `201 { orderId, checkoutUrl?, instructions? }` |
+| GET    | `/api/payments/:orderId/status` | ✅ | `{ status, paidAt?, failureReason? }` |
+| POST   | `/api/payments/webhook/:provider` | — | Provider callback (verify signature when wiring real providers) |
+| GET/POST | `/api/payments/dev/:orderId/simulate-payment` | dev only | Marks the order succeeded + activates the enrollment. **Not mounted when `NODE_ENV=production`** |
+
+**Flow:** in dev, `init` returns a `checkoutUrl` pointing at the simulate
+endpoint. The modal polls `/status` every 3 s; opening the checkout URL flips
+the order to `succeeded`, activates the enrollment, and the modal closes.
+
+The dev route is mounted with `optionalAuth` because `window.open()` cannot
+send an `Authorization` header. When a token *is* present the stricter
+owner check applies; when it is absent the order id (an unguessable cuid) is
+the only handle. The service re-asserts `NODE_ENV !== 'production'` as a
+second guard, so the endpoint is unreachable in production twice over.
+
+**Idempotency:** `init` uses `idempotencyKey = sha256(userId:subjectId:provider:window)`
+with a 15-minute window. Repeating inside the window returns the existing
+`pending` order. If that window's key is held by a **terminal** order (e.g. a
+failed attempt), a fresh key is derived so the retry can create a new order
+instead of violating the unique constraint.
+
+**State transitions** live in `markSucceeded` / `markFailed`:
+- `markSucceeded` is idempotent (no-op if already `succeeded`) and upserts the
+  enrollment to `active` with `currentPeriodEndsAt = null`.
+- `markFailed` never downgrades an order that already reached `succeeded` or
+  `refunded` — provider callbacks can arrive late or out of order.
+- Every transition writes an audit entry (`payment.initiated`,
+  `payment.succeeded`, `payment.failed`).
+
+**Providers** (in `src/modules/payments/providers.ts`):
+- **Telebirr**, **CBE Birr**, **Chapa** — each has an `init()` and a
+  `parseWebhook()`. Both are **dev stubs** returning simulated checkout URLs;
+  `init()` **throws in production** with a clear "not configured" message.
+- Webhook verification is currently a passthrough — add signature verification
+  per provider before going live. Chapa's `{ tx_ref, status: 'success' }` shape
+  is already mapped; Telebirr/CBE expect `{ providerRef, status }`.
+- An order is matched by `providerRef` **or** by `id`, so the dev simulator's
+  `dev-<orderId>` refs resolve too.
+
+### Account endpoints
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET    | `/api/me/preferences` | ✅ | Notification prefs + language + timezone |
+| PATCH  | `/api/me/preferences` | ✅ | Partial update (only supplied fields are written) |
+| POST   | `/api/me/password` | ✅ | `{ currentPassword, newPassword }` — revokes all other sessions |
+| POST   | `/api/me/export` | ✅ | Returns `{ url, expiresAt }` — 5-minute signed download URL |
+| GET    | `/api/me/export/download?token=` | — | Serves a JSON file (`Content-Disposition: attachment`) |
+| POST   | `/api/me/delete-account` | ✅ | `{ confirm: 'DELETE', reason? }` — anonymizes PII, deletes progress, keeps orders + audit |
+
+**Export:** the download URL is signed with `JWT_ACCESS_SECRET` using a
+distinct `type: 'export'` claim, so a normal access token is rejected by the
+download endpoint. It expires in 5 minutes, which makes `window.open` work
+without auth headers while keeping the link short-lived. The bundle redacts
+`passwordHash` and lists each dataset (profile / enrollments / attempts /
+orders) exactly once.
+
+Set `API_PUBLIC_URL` in production so the link points at your public host
+instead of `http://localhost:$PORT` (documented in `.env.example`).
+
+**Delete account:** anonymizes the user (email → `deleted-<id>@deleted.local`,
+phone → placeholder, fullName → "Deleted User", status → `suspended`,
+password → unusable), deletes all attempts / enrollments / review schedules /
+notification prefs / sent messages, and revokes every refresh token.
+**Orders and audit logs are retained** (legal compliance). Cascade FKs stay
+intact because the `User` row still exists.
+
+### Scheduled jobs
+
+An hourly job in `src/index.ts` flips overdue `trialing` enrollments to
+`expired`:
+
+```ts
+setInterval(() => void expireTrials(), 60 * 60 * 1000).unref();
+void expireTrials(); // …and once on startup
+```
+
+`unref()` keeps the timer from holding the process open during graceful
+shutdown, and the job swallows (and logs) its own errors so a DB blip never
+crashes the API.
+
+### Testing the admin dashboard locally
+
+```bash
+npm run prisma:seed         # base: subjects, topics, admin/teacher/mentor/student
+npm run prisma:seed:teacher # step 5: 2nd teacher + questions/papers
+npm run prisma:seed:admin   # step 6: 3 demo orders + 2 content flags
+```
+
+`prisma:seed:admin` is idempotent — it skips orders if any exist and skips
+flags if any exist. Admin login: `admin@examprep.local / Admin1234`.
+
+### Files added / changed
+
+```
+src/modules/payments/   types · schemas · providers · service · controller · routes
+src/modules/admin/      types · schemas · overview · users · orders(+mappers)
+                        · content · audit(+mappers) · admin.routes (placeholder → real)
+src/modules/account/    types · schemas · service · controller · routes
+prisma/seed-admin.ts    demo orders + content flags
+```
+
+Touched outside the new modules:
+
+- `src/routes/index.ts` — mounts `/api/payments` and `/api/me`.
+- `src/index.ts` — trial-expiry job (also fixes the mojibake in the startup banner).
+- `src/lib/audit.ts` — expanded `AuditAction` union.
+- `src/lib/jwt.ts` — export-token helpers.
+- `src/config/env.ts` + `.env.example` — optional `API_PUBLIC_URL`.
+- `package.json` — `"prisma:seed:admin": "tsx prisma/seed-admin.ts"`.
+
+### Route mounting order (important)
+
+`contentRouter` is mounted at the catch-all `'/'` and begins with
+`use(authenticate)`. If it is registered before the other routers, *every*
+request enters it first and is rejected with `401` before it can reach them —
+which silently breaks all three public step-6 endpoints:
+
+- `POST /api/payments/webhook/:provider` (provider callbacks carry no JWT)
+- `GET /api/me/export/download?token=` (opened with `window.open`)
+- `GET|POST /api/payments/dev/:orderId/simulate-payment` (opened in a browser)
+
+`src/routes/index.ts` therefore mounts it **last**: `/health`, `/auth`, the
+role-scoped routers, `/payments`, `/me`, then `'/'`. None of contentRouter's
+own paths (`/subjects`, `/topics`, `/courses`, `/papers`, `/attempts`,
+`/analytics/*`, `/enrollments`) collide with those prefixes. If you add a
+public endpoint later, mount it above contentRouter too.
+
+> Side effect: an unauthenticated request to a path that matches nothing
+> returns `401` rather than `404`, because contentRouter's auth gate runs
+> before the not-found fallback. Authenticated callers get the proper `404`.

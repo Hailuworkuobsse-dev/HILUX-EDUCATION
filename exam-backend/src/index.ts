@@ -3,6 +3,24 @@ import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
 
+const HOUR_MS = 60 * 60 * 1000;
+
+/** Flip overdue `trialing` enrollments to `expired`. */
+async function expireTrials(): Promise<void> {
+  try {
+    const now = new Date();
+    const expired = await prisma.enrollment.updateMany({
+      where: { status: 'trialing', trialEndsAt: { lt: now } },
+      data: { status: 'expired' }
+    });
+    if (expired.count > 0) {
+      logger.info({ count: expired.count }, 'â° Expired trialing enrollments');
+    }
+  } catch (err) {
+    logger.error({ err }, 'Failed to run trial expiry job');
+  }
+}
+
 async function main() {
   // Fail fast if the DB is not reachable
   try {
@@ -18,10 +36,16 @@ async function main() {
   const app = createApp();
 
   const server = app.listen(env.PORT, () => {
-    logger.info(`íº€ ExamPrep API listening on http://localhost:${env.PORT}`);
+    logger.info(`ðŸš€ ExamPrep API listening on http://localhost:${env.PORT}`);
     logger.info(`   Health: http://localhost:${env.PORT}/api/health`);
     logger.info(`   Environment: ${env.NODE_ENV}`);
   });
+
+  // Hourly trial-expiry â€” flips overdue trialing enrollments to expired.
+  // unref() so the timer never keeps the process alive on shutdown.
+  setInterval(() => void expireTrials(), HOUR_MS).unref();
+  // Run once on startup too
+  void expireTrials();
 
   const shutdown = (signal: string) => {
     logger.info({ signal }, 'Shutting down gracefullyâ€¦');
